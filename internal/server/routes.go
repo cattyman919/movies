@@ -19,6 +19,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/", s.HelloWorldHandler)
 
+	api := r.Group("/api")
+	api.GET("/movies/popular", s.PopularMoviesHandler)
+
 	r.GET("/health", s.healthHandler)
 
 	return r
@@ -29,6 +32,16 @@ func (s *Server) HelloWorldHandler(c *gin.Context) {
 	resp["message"] = "Hello World"
 
 	c.JSON(http.StatusOK, resp)
+}
+
+func (s *Server) PopularMoviesHandler(c *gin.Context) {
+	movies, err := s.tmdb.GetPopularMovies()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch popular movies"})
+		return
+	}
+
+	c.JSON(http.StatusOK, movies)
 }
 
 func (s *Server) healthHandler(c *gin.Context) {
