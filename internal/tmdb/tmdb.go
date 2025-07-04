@@ -4,24 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"movies/internal/tmdb/response"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 const (
-	BASE_URL              = "https://api.themoviedb.org/3"
-	NEW_GUEST_SESSION_URL = BASE_URL + "/authentication/guest_session/new"
-	NOW_PLAYING_URL       = BASE_URL + "/movie/now_playing"
+	BASE_URL              string = "https://api.themoviedb.org/3"
+	NEW_GUEST_SESSION_URL string = BASE_URL + "/authentication/guest_session/new"
 )
-
-// Movie defines the structure for a movie from TMDB
-type Movie struct {
-	ID         int    `json:"id"`
-	Title      string `json:"title"`
-	PosterPath string `json:"poster_path"`
-	Overview   string `json:"overview"`
-}
 
 // Client is a client for the TMDB API
 type Client struct {
@@ -39,7 +31,12 @@ func NewClient(apiKey string) *Client {
 	}
 }
 
-func (c *Client) do(req *http.Request, v interface{}) error {
+func (c *Client) do(method, url string, v interface{}) error {
+	req, err := c.ReqAuth(method, url)
+	if err != nil {
+		return err
+	}
+
 	resp, err := c.httpClient.Do(req)
 	log.Printf("Request URL to: %s\n", req.URL)
 	log.Printf("Response Status: %d\n", resp.StatusCode)
@@ -49,7 +46,7 @@ func (c *Client) do(req *http.Request, v interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorTMDBResponse
+		var errResp response.ErrorTMDBResponse
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
 			return fmt.Errorf("api error: status %d", resp.StatusCode)
 		}
@@ -66,35 +63,15 @@ func (c *Client) ReqAuth(method, url string) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Add("accept", "application/json")
+
+	// Asumes the Api Key is not empty
 	req.Header.Add("Authorization", "Bearer "+c.apiKey)
 	return req, nil
 }
 
-func (c *Client) NowPlaying(context *gin.Context) {
-	req, err := c.ReqAuth("GET", NOW_PLAYING_URL)
-	if err != nil {
-		context.Error(err)
-		return
-	}
-
-	var nowPlaying NowPlayingResponse
-	if err := c.do(req, &nowPlaying); err != nil {
-		context.Error(err)
-		return
-	}
-
-	context.JSON(http.StatusOK, nowPlaying)
-}
-
 func (c *Client) GetGuestSessionId(context *gin.Context) {
-	req, err := c.ReqAuth("GET", NEW_GUEST_SESSION_URL)
-	if err != nil {
-		context.Error(err)
-		return
-	}
-
-	var guestSession NewGuestSessionResponse
-	if err := c.do(req, &guestSession); err != nil {
+	var guestSession response.NewGuestSessionResponse
+	if err := c.do("GET", NEW_GUEST_SESSION_URL, &guestSession); err != nil {
 		context.Error(err)
 		return
 	}

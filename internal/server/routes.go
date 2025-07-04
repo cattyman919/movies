@@ -46,7 +46,15 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.GET("/health", s.healthHandler)
 	api := r.Group("/api")
+
+	// Movies
 	api.GET("/movies/now_playing", s.tmdb.NowPlaying)
+	api.GET("/movies/popular", s.tmdb.Popular_Movies)
+	api.GET("/movies/top_rated", s.tmdb.Top_Rated_Movies)
+	api.GET("/movies/upcoming", s.tmdb.Upcoming_Movies)
+	api.GET("/movie/:movie_id", s.tmdb.Movie_Detail)
+
+	// Session
 	api.GET("/get_guest_session", s.tmdb.GetGuestSessionId)
 
 	return r
