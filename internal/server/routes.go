@@ -7,8 +7,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ErrorHandler captures errors and returns a consistent JSON error response
+func ErrorHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next() // Step1: Process the request first.
+
+		// Step2: Check if any errors were added to the context
+		if len(c.Errors) > 0 {
+			// Step3: Use the last error
+			err := c.Errors.Last().Err
+
+			// Step4: Respond with a generic error message
+			c.JSON(http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+		}
+
+		// Any other steps if no errors are found
+	}
+}
+
+// Controller
 func (s *Server) RegisterRoutes() http.Handler {
+
 	r := gin.Default()
+
+	r.Use(ErrorHandler())
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"}, // Add your frontend URL
@@ -17,33 +42,18 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowCredentials: true, // Enable cookies/auth
 	}))
 
-	r.GET("/", s.HelloWorldHandler)
-
-	api := r.Group("/api")
-	api.GET("/movies/popular", s.PopularMoviesHandler)
+	// Register Handlers
 
 	r.GET("/health", s.healthHandler)
+	api := r.Group("/api")
+	api.GET("/movies/now_playing", s.tmdb.NowPlaying)
+	api.GET("/get_guest_session", s.tmdb.GetGuestSessionId)
 
 	return r
 }
 
-func (s *Server) HelloWorldHandler(c *gin.Context) {
-	resp := make(map[string]string)
-	resp["message"] = "Hello World"
-
-	c.JSON(http.StatusOK, resp)
-}
-
-func (s *Server) PopularMoviesHandler(c *gin.Context) {
-	movies, err := s.tmdb.GetPopularMovies()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch popular movies"})
-		return
-	}
-
-	c.JSON(http.StatusOK, movies)
-}
-
 func (s *Server) healthHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, s.db.Health())
+	resp := make(map[string]string)
+	resp["message"] = "Healthy"
+	c.JSON(http.StatusOK, resp)
 }
